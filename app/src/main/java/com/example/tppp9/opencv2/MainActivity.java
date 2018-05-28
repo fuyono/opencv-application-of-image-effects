@@ -1,99 +1,86 @@
 package com.example.tppp9.opencv2;
 
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.SurfaceView;
+import android.view.View;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.JavaCameraView;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.imgproc.Imgproc;
 
-public class MainActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
+import java.io.IOException;
 
-    CameraBridgeViewBase cameraBridgeViewBase;
-    BaseLoaderCallback baseLoaderCallback;
+public class MainActivity extends AppCompatActivity {
 
-    Mat mat1, mat2, mat3;
-
+    ImageView imageView;
+    Uri imageUri;
+    Bitmap grayMap, bitmap;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        cameraBridgeViewBase = (JavaCameraView)findViewById(R.id.myCameraView);
-        cameraBridgeViewBase.setVisibility(SurfaceView.VISIBLE);
-        cameraBridgeViewBase.setCvCameraViewListener(this);
+        imageView = findViewById(R.id.imageView);
 
-         baseLoaderCallback = new BaseLoaderCallback(this) {
-            @Override
-            public void onManagerConnected(int status) {
+        //avoid crash
+        OpenCVLoader.initDebug();
+    }
 
-                switch (status) {
-                    case BaseLoaderCallback.SUCCESS:
-                        cameraBridgeViewBase.enableView();
-                        break;
-                    default:
-                        super.onManagerConnected(status);
-                        break;
-                }
+    public void openGallery(View v) {
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+
+        startActivityForResult(intent, 100);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 100 && resultCode == RESULT_OK && data != null) {
+            imageUri = data.getData();
+            try {
+                bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), imageUri);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-        };
-    }
-
-    @Override
-    public void onCameraViewStarted(int width, int height) {
-        mat1 = new Mat(width, height, CvType.CV_8UC4);
-        mat2 = new Mat(width, height, CvType.CV_8UC4);
-        mat3 = new Mat(width, height, CvType.CV_8UC4);
-    }
-
-    @Override
-    public void onCameraViewStopped() {
-        mat1.release();
-
-    }
-
-    @Override
-    public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-        mat1 = inputFrame.rgba();
-
-        //rotate the frame to 90 degree
-//        Core.transpose(mat1, mat2);
-//        Imgproc.resize(mat2, mat3, mat3.size(), 0,0,0 );
-//        Core.flip(mat3,mat1,1);
-        return mat1;
-    }
-
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (cameraBridgeViewBase!= null) {
-            cameraBridgeViewBase.disableView();
+            imageView.setImageBitmap(bitmap);
         }
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (!OpenCVLoader.initDebug()) {
-            Toast.makeText(getApplicationContext(), "noooo", Toast.LENGTH_LONG).show();
-        } else {
-             baseLoaderCallback.onManagerConnected(BaseLoaderCallback.SUCCESS);
-        }
-    }
+    public void convertToGray(View v) {
+        Mat Rgba = new Mat();
+        Mat grayMat = new Mat();
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (cameraBridgeViewBase!= null) {
-            cameraBridgeViewBase.disableView();
-        }
+        BitmapFactory.Options o= new BitmapFactory.Options();
+        o.inDither = false;
+        o.inSampleSize = 4;
+
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+
+        grayMap = Bitmap.createBitmap(width, height,Bitmap.Config.RGB_565);
+
+        //Bbitmap to Mat
+
+        Utils.bitmapToMat(bitmap, Rgba);
+
+        Imgproc.cvtColor(Rgba, grayMat, Imgproc.COLOR_RGB2GRAY);
+        Utils.matToBitmap(grayMat, grayMap);
+
+        imageView.setImageBitmap(grayMap);
+
     }
 }
