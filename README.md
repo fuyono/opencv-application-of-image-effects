@@ -1,1 +1,1 @@
-learn about opencv library on Android
+Application of image effects (all are build-in functions...)
